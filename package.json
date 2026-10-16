@@ -21,7 +21,8 @@
     "mongodb-memory-server": "^11.3.0",
     "mongoose": "^9.11.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.4"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

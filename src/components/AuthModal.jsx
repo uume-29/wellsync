@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Leaf, ArrowRight, ShieldCheck, Mail, Lock, User, AlertCircle, RefreshCw } from 'lucide-react';
-import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 export default function AuthModal({ isOpen, onClose, initialMode = 'signup', onAuthSuccess }) {
   const [mode, setMode] = useState(initialMode); // 'login' or 'signup'
@@ -10,6 +10,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signup', onA
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  const { login, register } = useAuth();
 
   useEffect(() => {
     setMode(initialMode);
@@ -37,41 +39,44 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signup', onA
           setLoading(false);
           return;
         }
-        const res = await api.auth.register({ name, email, password });
+        const res = await register({ name: name.trim(), email: email.trim(), password });
         if (res.success && res.user) {
           setSuccessMsg(`Welcome to WellSync, ${res.user.name}! Redirecting to your dashboard...`);
           setTimeout(() => {
-            onAuthSuccess(res.user);
+            if (onAuthSuccess) onAuthSuccess(res.user);
             onClose();
-          }, 1000);
+          }, 800);
+        } else {
+          setErrorMsg(res.message || 'Registration failed.');
         }
       } else {
-        const res = await api.auth.login({ email, password });
+        const res = await login({ email: email.trim(), password });
         if (res.success && res.user) {
           setSuccessMsg(`Welcome back, ${res.user.name}! Redirecting to your dashboard...`);
           setTimeout(() => {
-            onAuthSuccess(res.user);
+            if (onAuthSuccess) onAuthSuccess(res.user);
             onClose();
-          }, 1000);
+          }, 800);
+        } else {
+          setErrorMsg(res.message || 'Invalid email or password.');
         }
       }
     } catch (err) {
-      console.error('[Auth Error]:', err);
-      const serverMessage = err.response?.data?.message || 'Authentication failed. Please check your credentials.';
-      setErrorMsg(serverMessage);
+      setErrorMsg(err.message || 'Authentication error.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in">
       <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-gray-100 relative">
         
         {/* Close Button */}
         <button 
           onClick={onClose}
           className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 p-2 rounded-full hover:bg-gray-100 cursor-pointer"
+          aria-label="Close dialog"
         >
           <X className="w-5 h-5" />
         </button>
@@ -109,7 +114,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signup', onA
               <div>
                 <label className="block text-xs font-bold text-[#1E293B] mb-1">Full Name</label>
                 <div className="relative">
-                  <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
                     required
@@ -125,7 +130,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signup', onA
             <div>
               <label className="block text-xs font-bold text-[#1E293B] mb-1">Email Address</label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Mail className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="email"
                   required
@@ -140,7 +145,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signup', onA
             <div>
               <label className="block text-xs font-bold text-[#1E293B] mb-1">Password</label>
               <div className="relative">
-                <Lock className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Lock className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="password"
                   required
