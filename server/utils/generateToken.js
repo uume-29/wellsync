@@ -23,6 +23,7 @@ const sendTokenResponse = (user, statusCode, res) => {
       id: userId,
       name: user.name,
       email: user.email,
+      preferences: user.preferences,
       createdAt: user.createdAt,
     },
   });

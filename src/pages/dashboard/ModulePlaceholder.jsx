@@ -108,12 +108,12 @@ export default function ModulePlaceholder({ module }) {
   const IconComp = config.icon;
 
   return (
-    <div className="space-y-6 animate-in fade-in max-w-4xl">
+    <div className="space-y-6 animate-fade-slide-up max-w-4xl">
       {/* Top Breadcrumb Back Link */}
       <div>
         <Link
           to="/dashboard"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#64748B] hover:text-[#1E293B] transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#64748B] hover:text-[#1E293B] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6B8E7B]/50 rounded-lg px-1.5 py-0.5"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Back to Dashboard Home</span>
@@ -121,10 +121,10 @@ export default function ModulePlaceholder({ module }) {
       </div>
 
       {/* Main Module Card */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-xs">
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200/90 shadow-2xs">
         <div className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-gray-100">
           <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-[#EBF1ED] text-[#6B8E7B] flex items-center justify-center shrink-0">
+            <div className="w-12 h-12 rounded-2xl bg-[#EBF1ED] text-[#6B8E7B] flex items-center justify-center shrink-0 shadow-2xs">
               <IconComp className="w-6 h-6" />
             </div>
             <div>
@@ -160,7 +160,7 @@ export default function ModulePlaceholder({ module }) {
             {config.plannedFeatures.map((feat, idx) => (
               <div
                 key={idx}
-                className="flex items-start gap-2.5 p-3 rounded-xl bg-white border border-gray-200/80 text-xs text-[#64748B]"
+                className="flex items-start gap-2.5 p-3 rounded-xl bg-white border border-gray-200/80 hover:border-[#6B8E7B]/40 hover:shadow-2xs text-xs text-[#64748B] transition-all"
               >
                 <CheckCircle2 className="w-4 h-4 text-[#6B8E7B] shrink-0 mt-0.5" />
                 <span>{feat}</span>
@@ -170,13 +170,13 @@ export default function ModulePlaceholder({ module }) {
         </div>
 
         {/* Action Button */}
-        <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-between">
+        <div className="mt-8 pt-6 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
           <span className="text-xs text-[#64748B]">
             Phase 1 provides authenticated routing for this section.
           </span>
           <Link
             to="/dashboard"
-            className="inline-flex items-center gap-2 bg-[#6B8E7B] hover:bg-[#567564] text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-all shadow-xs cursor-pointer"
+            className="inline-flex items-center gap-2 bg-[#6B8E7B] hover:bg-[#567564] text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-all shadow-xs hover:shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6B8E7B]"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Return to Dashboard</span>

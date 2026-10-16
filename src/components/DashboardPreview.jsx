@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  LayoutDashboard, Utensils, Camera, DollarSign, Pill, Users, 
+  LayoutDashboard, Utensils, Camera, IndianRupee, Pill, Users, 
   Sparkles, Activity, User, CheckCircle2, XCircle, Clock, 
   Search, Bell, ChevronRight, ShieldCheck, ArrowRight, Heart
 } from 'lucide-react';
@@ -14,7 +14,7 @@ export default function DashboardPreview() {
     { id: 'food-analysis', label: 'Food Scanner', icon: Camera },
     { id: 'ai-assistant', label: 'RAG AI Assistant', icon: Sparkles },
     { id: 'medicine', label: 'Medicine Tracker', icon: Pill },
-    { id: 'grocery', label: 'Grocery Budget', icon: DollarSign },
+    { id: 'grocery', label: 'Grocery Budget', icon: IndianRupee },
     { id: 'insights', label: 'Wellness Insights', icon: Activity },
   ];
 
@@ -102,7 +102,7 @@ export default function DashboardPreview() {
                       <Camera className="w-4 h-4 text-slate-400" /> Food Diary
                     </div>
                     <div className="flex items-center gap-3 hover:bg-slate-800 px-3 py-2 rounded-xl transition-colors cursor-pointer">
-                      <DollarSign className="w-4 h-4 text-slate-400" /> Grocery List
+                      <IndianRupee className="w-4 h-4 text-slate-400" /> Grocery List
                     </div>
                     <div className="flex items-center gap-3 hover:bg-slate-800 px-3 py-2 rounded-xl transition-colors cursor-pointer">
                       <Pill className="w-4 h-4 text-slate-400" /> Medicines

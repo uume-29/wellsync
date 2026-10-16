@@ -7,7 +7,13 @@ import AuthPage from './pages/AuthPage';
 import DashboardLayout from './layouts/DashboardLayout';
 import DashboardHome from './pages/dashboard/DashboardHome';
 import ProfileView from './pages/dashboard/ProfileView';
-import ModulePlaceholder from './pages/dashboard/ModulePlaceholder';
+import MealPlannerView from './pages/dashboard/MealPlannerView';
+import FoodDiaryView from './pages/dashboard/FoodDiaryView';
+import GroceryListView from './pages/dashboard/GroceryListView';
+import MedicineTrackerView from './pages/dashboard/MedicineTrackerView';
+import CaregiverAccessView from './pages/dashboard/CaregiverAccessView';
+import AiAssistantView from './pages/dashboard/AiAssistantView';
+import InsightsView from './pages/dashboard/InsightsView';
 
 export default function App() {
   return (
@@ -33,17 +39,15 @@ export default function App() {
             {/* Dashboard Home Overview */}
             <Route index element={<DashboardHome />} />
 
-            {/* Profile Route */}
+            {/* Dedicated Feature Routes */}
             <Route path="profile" element={<ProfileView />} />
-
-            {/* Phase 2 & 3 Placeholder Routes (No fake data) */}
-            <Route path="meals" element={<ModulePlaceholder module="meals" />} />
-            <Route path="food-diary" element={<ModulePlaceholder module="food-diary" />} />
-            <Route path="groceries" element={<ModulePlaceholder module="groceries" />} />
-            <Route path="medicines" element={<ModulePlaceholder module="medicines" />} />
-            <Route path="caregiver" element={<ModulePlaceholder module="caregiver" />} />
-            <Route path="assistant" element={<ModulePlaceholder module="assistant" />} />
-            <Route path="insights" element={<ModulePlaceholder module="insights" />} />
+            <Route path="meals" element={<MealPlannerView />} />
+            <Route path="food-diary" element={<FoodDiaryView />} />
+            <Route path="groceries" element={<GroceryListView />} />
+            <Route path="medicines" element={<MedicineTrackerView />} />
+            <Route path="caregiver" element={<CaregiverAccessView />} />
+            <Route path="assistant" element={<AiAssistantView />} />
+            <Route path="insights" element={<InsightsView />} />
           </Route>
 
           {/* Catch-all redirect to Home */}

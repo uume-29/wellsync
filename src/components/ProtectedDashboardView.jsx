@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { 
-  LayoutDashboard, Utensils, Camera, DollarSign, Pill, Users, 
+  LayoutDashboard, Utensils, Camera, Pill, Users, 
   Sparkles, Activity, User, LogOut, CheckCircle2, XCircle, Clock, 
   Bell, ChevronRight, ShieldCheck, Heart, RefreshCw, Calendar
 } from 'lucide-react';
 import { api } from '../services/api';
+import { formatCurrency, formatWholeCurrency } from '../utils/currency';
 
 export default function ProtectedDashboardView({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('overview');
@@ -116,8 +117,8 @@ export default function ProtectedDashboardView({ user, onLogout }) {
 
               <div className="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs">
                 <span className="text-[10px] font-bold text-[#64748B] uppercase">Grocery Spend</span>
-                <div className="text-2xl font-black text-[#1E293B] mt-1">$118.50</div>
-                <span className="text-[10px] text-[#64748B]">Under $140 budget</span>
+                <div className="text-2xl font-black text-[#1E293B] mt-1">{formatCurrency(2150)}</div>
+                <span className="text-[10px] text-[#64748B]">Under {formatWholeCurrency(2500)} budget</span>
               </div>
 
               <div className="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs">

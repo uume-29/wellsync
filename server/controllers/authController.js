@@ -134,12 +134,20 @@ exports.getMe = async (req, res) => {
       });
     }
 
+    const preferences = user.preferences ? (user.preferences.toObject ? user.preferences.toObject() : { ...user.preferences }) : {};
+    if (preferences.weeklyBudget && preferences.weeklyBudget <= 150) {
+      preferences.weeklyBudget = 2500;
+      user.preferences.weeklyBudget = 2500;
+      await user.save();
+    }
+
     res.status(200).json({
       success: true,
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
+        preferences,
         createdAt: user.createdAt,
       },
     });
@@ -151,3 +159,58 @@ exports.getMe = async (req, res) => {
     });
   }
 };
+
+// @desc    Update user profile & preferences
+// @route   PUT /api/auth/profile
+// @access  Private
+exports.updateProfile = async (req, res) => {
+  try {
+    const { name, preferences, weeklyBudget, calorieTarget, dietaryRestrictions, allergies, wellnessGoals } = req.body;
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found.',
+      });
+    }
+
+    if (name) user.name = name.trim();
+
+    // Support both nested req.body.preferences and top-level fields
+    const incomingPrefs = { ...(preferences || {}) };
+    if (weeklyBudget !== undefined) incomingPrefs.weeklyBudget = Number(weeklyBudget);
+    if (calorieTarget !== undefined) incomingPrefs.calorieTarget = Number(calorieTarget);
+    if (dietaryRestrictions !== undefined) incomingPrefs.dietaryRestrictions = dietaryRestrictions;
+    if (allergies !== undefined) incomingPrefs.allergies = allergies;
+    if (wellnessGoals !== undefined) incomingPrefs.wellnessGoals = wellnessGoals;
+
+    if (Object.keys(incomingPrefs).length > 0) {
+      user.preferences = {
+        ...(user.preferences?.toObject ? user.preferences.toObject() : user.preferences),
+        ...incomingPrefs,
+      };
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully.',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        preferences: user.preferences,
+        createdAt: user.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error('[Update Profile Error]:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error updating profile.',
+    });
+  }
+};
+

@@ -29,6 +29,28 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    preferences: {
+      dietaryRestrictions: {
+        type: [String],
+        default: [],
+      },
+      allergies: {
+        type: [String],
+        default: [],
+      },
+      weeklyBudget: {
+        type: Number,
+        default: 2500,
+      },
+      calorieTarget: {
+        type: Number,
+        default: 2000,
+      },
+      wellnessGoals: {
+        type: [String],
+        default: [],
+      },
+    },
   },
   {
     timestamps: true,

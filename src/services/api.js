@@ -31,6 +31,11 @@ export const api = {
       const response = await axiosInstance.get('/api/auth/me');
       return response.data;
     },
+
+    updateProfile: async ({ name, preferences }) => {
+      const response = await axiosInstance.put('/api/auth/profile', { name, preferences });
+      return response.data;
+    },
   },
 
   // Stubs for future backend features (Meal Planner, Vision, RAG Assistant)
