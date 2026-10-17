@@ -14,11 +14,13 @@ const sendTokenResponse = (user, statusCode, res) => {
     expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
     httpOnly: true, // Prevents XSS access to token
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    path: '/',
   };
 
   return res.status(statusCode).cookie('token', token, cookieOptions).json({
     success: true,
+    token,
     user: {
       id: userId,
       name: user.name,

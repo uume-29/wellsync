@@ -1,13 +1,42 @@
 import axios from 'axios';
 
+// Dynamically match browser hostname (localhost or 127.0.0.1) on port 5000 to maintain same-site cookie scope
+const getBaseURL = () => {
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+  if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+    return `${window.location.protocol}//${window.location.hostname}:5000`;
+  }
+  return 'http://localhost:5000';
+};
+
 // Create configured Axios instance with credentials enabled for HttpOnly cookies
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000',
-  withCredentials: true, // Crucial for receiving and sending HttpOnly authentication cookies
+  baseURL: getBaseURL(),
+  withCredentials: true, // Always send & receive HttpOnly authentication cookies
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+// Request interceptor: attach Bearer token fallback if present in client storage
+axiosInstance.interceptors.request.use(
+  (config) => {
+    try {
+      if (typeof window !== 'undefined') {
+        const storedToken = localStorage.getItem('wellsync_auth_token');
+        if (storedToken && !config.headers.Authorization) {
+          config.headers.Authorization = `Bearer ${storedToken}`;
+        }
+      }
+    } catch (e) {
+      // Ignore storage access errors in restricted browser contexts
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 export const api = {
   // Authentication API Endpoints
@@ -32,23 +61,40 @@ export const api = {
       return response.data;
     },
 
-    updateProfile: async ({ name, preferences }) => {
-      const response = await axiosInstance.put('/api/auth/profile', { name, preferences });
+    updateProfile: async (profileData) => {
+      const response = await axiosInstance.put('/api/profile', profileData);
       return response.data;
     },
   },
 
-  // Stubs for future backend features (Meal Planner, Vision, RAG Assistant)
+  // User Profile API Endpoints
+  profile: {
+    getProfile: async () => {
+      const response = await axiosInstance.get('/api/profile');
+      return response.data;
+    },
+
+    updateProfile: async (profileData) => {
+      const response = await axiosInstance.put('/api/profile', profileData);
+      return response.data;
+    },
+  },
+
+  // Clinical AI Meal Planner API Endpoints (MongoDB Atlas Persisted)
   mealPlanner: {
-    generatePlan: async () => {
-      return {
-        success: true,
-        meals: [
-          { day: 'Monday', meal: 'Quinoa Bowl with Roasted Sage Chickpeas & Avocado', calories: 520 },
-          { day: 'Tuesday', meal: 'Herb Salmon with Steamed Bok Choy & Sweet Potato', calories: 610 },
-          { day: 'Wednesday', meal: 'Golden Turmeric Lentil Soup with Spinach', calories: 440 },
-        ],
-      };
+    getCurrentPlan: async () => {
+      const response = await axiosInstance.get('/api/meals/current');
+      return response.data;
+    },
+
+    generatePlan: async (params = {}) => {
+      const response = await axiosInstance.post('/api/meals/generate', params);
+      return response.data;
+    },
+
+    swapMeal: async ({ dayId, mealType }) => {
+      const response = await axiosInstance.post('/api/meals/swap', { dayId, mealType });
+      return response.data;
     },
   },
 

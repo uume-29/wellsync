@@ -20,6 +20,9 @@ export function AuthProvider({ children }) {
         }
       } catch (err) {
         // Not authenticated or token expired - session remains null
+        try {
+          localStorage.removeItem('wellsync_auth_token');
+        } catch (e) {}
         if (isMounted) {
           setUser(null);
         }
@@ -42,6 +45,11 @@ export function AuthProvider({ children }) {
     try {
       const response = await api.auth.login({ email, password });
       if (response?.success && response?.user) {
+        if (response.token) {
+          try {
+            localStorage.setItem('wellsync_auth_token', response.token);
+          } catch (e) {}
+        }
         setUser(response.user);
         return { success: true, user: response.user };
       }
@@ -58,6 +66,11 @@ export function AuthProvider({ children }) {
     try {
       const response = await api.auth.register({ name, email, password });
       if (response?.success && response?.user) {
+        if (response.token) {
+          try {
+            localStorage.setItem('wellsync_auth_token', response.token);
+          } catch (e) {}
+        }
         setUser(response.user);
         return { success: true, user: response.user };
       }
@@ -75,6 +88,9 @@ export function AuthProvider({ children }) {
     } catch (err) {
       console.error('[Logout error]:', err);
     } finally {
+      try {
+        localStorage.removeItem('wellsync_auth_token');
+      } catch (e) {}
       setUser(null);
       setAuthError(null);
     }

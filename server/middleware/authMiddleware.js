@@ -5,8 +5,17 @@ const User = require('../models/User');
 const protect = async (req, res, next) => {
   let token;
 
+  // 1. Check HttpOnly cookie (primary)
   if (req.cookies && req.cookies.token && req.cookies.token !== 'none') {
     token = req.cookies.token;
+  }
+  // 2. Check Authorization Bearer header (secondary/fallback)
+  else if (
+    req.headers.authorization &&
+    typeof req.headers.authorization === 'string' &&
+    req.headers.authorization.startsWith('Bearer ')
+  ) {
+    token = req.headers.authorization.split(' ')[1];
   }
 
   if (!token) {
@@ -24,31 +33,21 @@ const protect = async (req, res, next) => {
 
     let user = null;
 
-    if (mongoose.connection.readyState === 1) {
+    if (mongoose.connection.readyState === 1 && decoded.id) {
       user = await User.findById(decoded.id).select('-password');
-    }
-
-    if (!user) {
-      // Fallback check
-      const { memoryUsers } = require('../controllers/authController');
-      user = memoryUsers.find((u) => u._id.toString() === decoded.id.toString());
-      if (user) {
-        const { password, ...safeUser } = user;
-        user = safeUser;
-      }
     }
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'The user belonging to this token no longer exists.',
+        message: 'The user belonging to this token no longer exists. Please log in again.',
       });
     }
 
     req.user = user;
     next();
   } catch (err) {
-    console.error(`[Auth Middleware Error]: ${err.message}`);
+    console.error(`[Auth Middleware Error]: ${err.name || 'TokenError'}`);
     return res.status(401).json({
       success: false,
       message: 'Not authorized. Invalid or expired token.',

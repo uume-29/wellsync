@@ -1,12 +1,13 @@
 const path = require('path');
-const express = require('express');
 const dotenv = require('dotenv');
+
+// Load environment variables immediately before other modules
+dotenv.config({ path: path.join(__dirname, '.env') });
+
+const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
-
-// Load environment variables
-dotenv.config({ path: path.join(__dirname, '.env') });
 
 // Connect to MongoDB
 connectDB();
@@ -21,9 +22,12 @@ app.use(cookieParser());
 // Enable CORS with Credentials for HttpOnly cookies
 const allowedOrigins = [
   process.env.CLIENT_URL || 'http://localhost:5173',
+  'http://localhost:5173',
   'http://127.0.0.1:5173',
   'http://localhost:5174',
   'http://127.0.0.1:5174',
+  'http://localhost:5175',
+  'http://127.0.0.1:5175',
 ];
 
 app.use(
@@ -40,8 +44,20 @@ app.use(
   })
 );
 
-// Mount Auth Routes
+// Safe development request logger (no tokens, passwords, or secrets logged)
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    const hasCookie = Boolean(req.cookies?.token);
+    const hasAuth = Boolean(req.headers.authorization);
+    console.log(`[API Request] ${req.method} ${req.originalUrl} | Origin: ${req.headers.origin || 'same-origin'} | HasCookie: ${hasCookie} | HasAuthHeader: ${hasAuth}`);
+    next();
+  });
+}
+
+// Mount Auth, Profile & Meal Planner Routes
 app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/profile', require('./routes/profileRoutes'));
+app.use('/api/meals', require('./routes/mealPlanRoutes'));
 
 // Health Check Route
 app.get('/api/health', (req, res) => {
