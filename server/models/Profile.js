@@ -52,6 +52,28 @@ const profileSchema = new mongoose.Schema(
       max: [10000, 'Calorie target cannot exceed 10,000 kcal'],
       default: 2000,
     },
+    foodCulture: {
+      type: String,
+      enum: {
+        values: ['Indian', 'Western / International', 'Mixed'],
+        message: '{VALUE} is not a valid food culture preference',
+      },
+      default: 'Indian',
+    },
+    preferredCuisines: {
+      type: [String],
+      default: ['North Indian', 'South Indian'],
+    },
+    dislikedIngredients: {
+      type: [String],
+      default: [],
+    },
+    householdSize: {
+      type: Number,
+      min: [1, 'Household size must be at least 1 person'],
+      max: [12, 'Household size cannot exceed 12 people'],
+      default: 1,
+    },
   },
   {
     timestamps: true,

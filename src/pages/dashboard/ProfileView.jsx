@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { 
   User, Mail, ShieldCheck, ArrowLeft, CheckCircle2, AlertCircle, 
   Save, X, Sparkles, Target, Edit3, XCircle, 
-  Activity, DollarSign, Heart, Lock, Calendar, RefreshCw, Check
+  Activity, DollarSign, Heart, Lock, Calendar, RefreshCw, Check,
+  Globe, Users, Utensils, Minus, Plus
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
@@ -26,6 +27,69 @@ const PREFERRED_DIET_TYPES = [
   { id: 'Mediterranean', label: 'Mediterranean', desc: 'Cold-pressed olive oil, legumes, whole grains, nuts & herbs' },
   { id: 'Plant-Based', label: 'Plant-Based', desc: 'Rich in pulses, grains, seasonal vegetables, seeds & greens' },
   { id: 'Intermittent Fasting', label: 'Intermittent Fasting', desc: 'Time-restricted eating window (16:8) with nutrient density' },
+];
+
+const FOOD_CULTURES = [
+  {
+    id: 'Indian',
+    label: 'Indian',
+    tag: 'Regional Indian Cuisines',
+    desc: 'Celebrates diverse regional culinary traditions across North, South, Western, and Eastern India with authentic spices and wholesome ingredients.',
+  },
+  {
+    id: 'Western / International',
+    label: 'Western / International',
+    tag: 'Global International Cuisines',
+    desc: 'Italian, Mexican, Mediterranean, East Asian, and Continental recipes prepared with fresh herbs, olive oils, and global aromatics.',
+  },
+  {
+    id: 'Mixed',
+    label: 'Mixed',
+    tag: 'Indian & Global Harmony',
+    desc: 'A vibrant combination rotating regional Indian home-style cooking alongside beloved international and continental dishes throughout the week.',
+  },
+];
+
+const CUISINE_OPTIONS_BY_CULTURE = {
+  Indian: [
+    'North Indian',
+    'South Indian',
+    'Gujarati & Rajasthani',
+    'Maharashtrian',
+    'Bengali & Eastern Indian',
+    'Coastal & Konkani',
+  ],
+  'Western / International': [
+    'Italian',
+    'Mexican',
+    'Mediterranean',
+    'East Asian / Chinese',
+    'Japanese & Pan-Asian',
+    'Continental',
+    'Middle Eastern',
+  ],
+  Mixed: [
+    'North Indian',
+    'South Indian',
+    'Italian',
+    'Mexican',
+    'Mediterranean',
+    'East Asian / Chinese',
+    'Continental',
+    'Gujarati & Rajasthani',
+  ],
+};
+
+const COMMON_DISLIKED_SUGGESTIONS = [
+  'Mushrooms',
+  'Coriander / Cilantro',
+  'Bitter gourd (Karela)',
+  'Brinjal (Eggplant)',
+  'Bell peppers / Capsicum',
+  'Olives',
+  'Onions',
+  'Garlic',
+  'Broccoli',
 ];
 
 const COMMON_ALLERGIES = [
@@ -85,12 +149,17 @@ export default function ProfileView() {
     preferredDietType: 'Balanced / Whole Food',
     monthlyFoodBudget: 10000,
     calorieTarget: 2000,
+    foodCulture: 'Indian',
+    preferredCuisines: ['North Indian', 'South Indian'],
+    dislikedIngredients: [],
+    householdSize: 1,
     memberSince: user?.createdAt || null,
   });
 
   // Working Form State (Used while in Edit Mode)
   const [formData, setFormData] = useState({ ...savedProfile });
   const [customAllergen, setCustomAllergen] = useState('');
+  const [customDisliked, setCustomDisliked] = useState('');
 
   // 1. Fetch profile from MongoDB on mount
   useEffect(() => {
@@ -114,6 +183,14 @@ export default function ProfileView() {
             preferredDietType: p.preferredDietType || 'Balanced / Whole Food',
             monthlyFoodBudget: Number(p.monthlyFoodBudget) || (user?.preferences?.weeklyBudget ? user.preferences.weeklyBudget * 4 : 10000),
             calorieTarget: Number(p.calorieTarget) || user?.preferences?.calorieTarget || 2000,
+            foodCulture: p.foodCulture || user?.preferences?.foodCulture || 'Indian',
+            preferredCuisines: Array.isArray(p.preferredCuisines) && p.preferredCuisines.length > 0
+              ? p.preferredCuisines
+              : (user?.preferences?.preferredCuisines || ['North Indian', 'South Indian']),
+            dislikedIngredients: Array.isArray(p.dislikedIngredients)
+              ? p.dislikedIngredients
+              : (user?.preferences?.dislikedIngredients || []),
+            householdSize: Math.max(1, Math.min(12, Number(p.householdSize) || Number(user?.preferences?.householdSize) || 1)),
             memberSince: p.memberSince || user?.createdAt || null,
           };
 
@@ -135,6 +212,10 @@ export default function ProfileView() {
             preferredDietType: 'Balanced / Whole Food',
             monthlyFoodBudget: user?.preferences?.weeklyBudget ? user.preferences.weeklyBudget * 4 : 10000,
             calorieTarget: user?.preferences?.calorieTarget || 2000,
+            foodCulture: user?.preferences?.foodCulture || 'Indian',
+            preferredCuisines: user?.preferences?.preferredCuisines || ['North Indian', 'South Indian'],
+            dislikedIngredients: user?.preferences?.dislikedIngredients || [],
+            householdSize: Number(user?.preferences?.householdSize) || 1,
             memberSince: user?.createdAt || null,
           };
           setSavedProfile(fallback);
@@ -168,6 +249,7 @@ export default function ProfileView() {
     setValidationErrors({});
     setErrorMessage('');
     setCustomAllergen('');
+    setCustomDisliked('');
     setIsEditing(false);
   };
 
@@ -202,6 +284,71 @@ export default function ProfileView() {
       ...prev,
       foodAllergies: prev.foodAllergies.filter(a => a !== allergyToRemove)
     }));
+  };
+
+  // Food Culture & Cuisines helpers
+  const handleSelectCulture = (cultureId) => {
+    const availableCuisines = CUISINE_OPTIONS_BY_CULTURE[cultureId] || [];
+    // Retain matching cuisines, or default to first two available
+    const retained = formData.preferredCuisines.filter(c => availableCuisines.includes(c));
+    const nextCuisines = retained.length > 0 ? retained : availableCuisines.slice(0, 2);
+
+    setFormData(prev => ({
+      ...prev,
+      foodCulture: cultureId,
+      preferredCuisines: nextCuisines,
+    }));
+  };
+
+  const toggleCuisine = (cuisine) => {
+    setFormData(prev => {
+      const exists = prev.preferredCuisines.includes(cuisine);
+      if (exists && prev.preferredCuisines.length === 1) {
+        return prev; // Maintain at least one preferred cuisine
+      }
+      return {
+        ...prev,
+        preferredCuisines: exists
+          ? prev.preferredCuisines.filter(c => c !== cuisine)
+          : [...prev.preferredCuisines, cuisine],
+      };
+    });
+  };
+
+  // Disliked Ingredients helpers (taste preference, distinct from allergies)
+  const handleAddDisliked = (e) => {
+    if (e) e.preventDefault();
+    const clean = customDisliked.trim();
+    if (!clean) return;
+    if (!formData.dislikedIngredients.some(item => item.toLowerCase() === clean.toLowerCase())) {
+      setFormData(prev => ({
+        ...prev,
+        dislikedIngredients: [...prev.dislikedIngredients, clean],
+      }));
+    }
+    setCustomDisliked('');
+  };
+
+  const handleQuickAddDisliked = (suggestion) => {
+    if (!formData.dislikedIngredients.some(item => item.toLowerCase() === suggestion.toLowerCase())) {
+      setFormData(prev => ({
+        ...prev,
+        dislikedIngredients: [...prev.dislikedIngredients, suggestion],
+      }));
+    }
+  };
+
+  const handleRemoveDisliked = (itemToRemove) => {
+    setFormData(prev => ({
+      ...prev,
+      dislikedIngredients: prev.dislikedIngredients.filter(i => i !== itemToRemove),
+    }));
+  };
+
+  // Household size helper (validated between 1 and 12)
+  const handleHouseholdSizeChange = (newSize) => {
+    const clamped = Math.max(1, Math.min(12, Number(newSize) || 1));
+    setFormData(prev => ({ ...prev, householdSize: clamped }));
   };
 
   const toggleGoal = (goalId) => {
@@ -251,6 +398,17 @@ export default function ProfileView() {
       }
     }
 
+    if (formData.householdSize !== '' && formData.householdSize !== null) {
+      const numHousehold = Number(formData.householdSize);
+      if (isNaN(numHousehold) || !Number.isInteger(numHousehold) || numHousehold < 1 || numHousehold > 12) {
+        errors.householdSize = 'Household size must be a whole number between 1 and 12.';
+      }
+    }
+
+    if (!formData.preferredCuisines || formData.preferredCuisines.length === 0) {
+      errors.preferredCuisines = 'Please select at least one preferred cuisine.';
+    }
+
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -275,6 +433,10 @@ export default function ProfileView() {
         preferredDietType: formData.preferredDietType,
         monthlyFoodBudget: Number(formData.monthlyFoodBudget),
         calorieTarget: Number(formData.calorieTarget),
+        foodCulture: formData.foodCulture,
+        preferredCuisines: formData.preferredCuisines,
+        dislikedIngredients: formData.dislikedIngredients,
+        householdSize: Number(formData.householdSize),
       };
 
       const res = await api.profile.updateProfile(payload);
@@ -292,6 +454,10 @@ export default function ProfileView() {
           preferredDietType: p.preferredDietType,
           monthlyFoodBudget: Number(p.monthlyFoodBudget),
           calorieTarget: Number(p.calorieTarget),
+          foodCulture: p.foodCulture || formData.foodCulture,
+          preferredCuisines: p.preferredCuisines || formData.preferredCuisines,
+          dislikedIngredients: p.dislikedIngredients || formData.dislikedIngredients,
+          householdSize: Number(p.householdSize) || formData.householdSize,
           memberSince: p.memberSince || savedProfile.memberSince,
         };
 
@@ -493,6 +659,14 @@ export default function ProfileView() {
                 </span>
                 <span className="font-semibold text-[#64748B] bg-[#F8FAF7] border border-gray-200 px-2.5 py-0.5 rounded-lg">
                   {savedProfile.preferredDietType}
+                </span>
+                <span className="font-bold text-[#D9A441] bg-[#FAF4E8] border border-[#D9A441]/30 px-2.5 py-0.5 rounded-lg flex items-center gap-1">
+                  <Globe className="w-3 h-3 text-[#D9A441]" />
+                  <span>{savedProfile.foodCulture} Culture</span>
+                </span>
+                <span className="font-semibold text-[#1E293B] bg-[#F8FAF7] border border-gray-200 px-2.5 py-0.5 rounded-lg flex items-center gap-1">
+                  <Users className="w-3 h-3 text-[#6B8E7B]" />
+                  <span>Cooking for {savedProfile.householdSize} {savedProfile.householdSize === 1 ? 'person' : 'people'}</span>
                 </span>
                 <span className="font-bold text-[#6B8E7B] bg-[#EBF1ED] px-2.5 py-0.5 rounded-lg">
                   Budget: {formatWholeCurrency(savedProfile.monthlyFoodBudget)} / mo
@@ -729,6 +903,208 @@ export default function ProfileView() {
           </div>
         </div>
 
+        {/* SECTION B1: FOOD CULTURE, PREFERRED CUISINES & HOUSEHOLD SIZE */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200/90 shadow-2xs space-y-6">
+          <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <Globe className="w-4 h-4 text-[#6B8E7B]" />
+              <h2 className="text-base font-bold text-[#1E293B]">Food Culture, Cuisines & Household Size</h2>
+            </div>
+            <span className="text-[11px] text-[#64748B]">Regional culinary heritage & serving scale</span>
+          </div>
+
+          <div className="space-y-6 text-xs">
+            {/* 1. Food Culture Preference */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block font-bold text-[#1E293B]">
+                  Food Culture Selection <span className="text-red-500">*</span>
+                </label>
+                <span className="text-[11px] text-[#64748B]">Choose your primary culinary tradition</span>
+              </div>
+
+              {isEditing ? (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {FOOD_CULTURES.map(culture => {
+                    const active = formData.foodCulture === culture.id;
+                    return (
+                      <button
+                        type="button"
+                        key={culture.id}
+                        onClick={() => handleSelectCulture(culture.id)}
+                        className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                          active
+                            ? 'bg-[#EBF1ED] border-[#6B8E7B] text-[#1E293B] ring-1 ring-[#6B8E7B]'
+                            : 'bg-[#F8FAF7] border-gray-200/90 text-[#64748B] hover:border-gray-300'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className={`font-bold text-xs ${active ? 'text-[#6B8E7B]' : 'text-[#1E293B]'}`}>
+                              {culture.label}
+                            </span>
+                            {active && <Check className="w-4 h-4 text-[#6B8E7B] stroke-[3]" />}
+                          </div>
+                          <span className="inline-block text-[10px] font-semibold text-[#6B8E7B] bg-white px-2 py-0.5 rounded-md border border-[#6B8E7B]/30 mb-2">
+                            {culture.tag}
+                          </span>
+                          <p className="text-[11px] text-[#64748B] leading-relaxed">{culture.desc}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-[#F8FAF7] border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-extrabold text-[#1E293B]">
+                        {savedProfile.foodCulture} Culture
+                      </span>
+                      <span className="text-[10px] font-bold text-[#6B8E7B] bg-[#EBF1ED] px-2.5 py-0.5 rounded-lg">
+                        {FOOD_CULTURES.find(c => c.id === savedProfile.foodCulture)?.tag || 'Culinary Preference'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#64748B] leading-relaxed max-w-xl">
+                      {FOOD_CULTURES.find(c => c.id === savedProfile.foodCulture)?.desc}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 2. Preferred Cuisines */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block font-bold text-[#1E293B]">
+                  Preferred Cuisines {isEditing && <span className="text-[#64748B] font-normal">(Select multiple)</span>}
+                </label>
+                <span className="text-[11px] font-semibold text-[#6B8E7B]">
+                  {(isEditing ? formData.preferredCuisines : savedProfile.preferredCuisines).length} Selected
+                </span>
+              </div>
+
+              {isEditing ? (
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    {(CUISINE_OPTIONS_BY_CULTURE[formData.foodCulture] || []).map(cuisine => {
+                      const selected = formData.preferredCuisines.includes(cuisine);
+                      return (
+                        <button
+                          type="button"
+                          key={cuisine}
+                          onClick={() => toggleCuisine(cuisine)}
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                            selected
+                              ? 'bg-[#6B8E7B] text-white shadow-xs'
+                              : 'bg-[#F8FAF7] text-[#64748B] hover:text-[#1E293B] border border-gray-200'
+                          }`}
+                        >
+                          <span>{selected ? '✓' : '+'}</span>
+                          <span>{cuisine}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {validationErrors.preferredCuisines && (
+                    <span className="text-[10px] text-red-600 font-semibold block mt-1">
+                      {validationErrors.preferredCuisines}
+                    </span>
+                  )}
+                  <span className="text-[10px] text-[#64748B] block">
+                    Cuisines update automatically when you switch your Food Culture, but you can customize your selections anytime.
+                  </span>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {savedProfile.preferredCuisines.map(c => (
+                    <span
+                      key={c}
+                      className="inline-flex items-center gap-1 bg-[#EBF1ED] text-[#6B8E7B] border border-[#6B8E7B]/30 px-3 py-1 rounded-xl text-xs font-bold"
+                    >
+                      <Utensils className="w-3 h-3" />
+                      <span>{c}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 3. Household Size (Cooking For) */}
+            <div className="pt-2 border-t border-gray-100">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <label className="block font-bold text-[#1E293B] text-xs">
+                    Cooking For (Household Size)
+                  </label>
+                  <span className="text-[11px] text-[#64748B]">
+                    Number of people you usually cook for (1–12). Recipes and grocery quantities will be proportioned accordingly.
+                  </span>
+                </div>
+                <span className="text-sm font-extrabold text-[#6B8E7B] bg-[#EBF1ED] px-3 py-1 rounded-xl">
+                  {isEditing ? formData.householdSize : savedProfile.householdSize} {(isEditing ? formData.householdSize : savedProfile.householdSize) === 1 ? 'person' : 'people'}
+                </span>
+              </div>
+
+              {isEditing ? (
+                <div className="space-y-3 pt-1">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleHouseholdSizeChange(formData.householdSize - 1)}
+                      disabled={formData.householdSize <= 1}
+                      className="w-9 h-9 rounded-xl border border-gray-200 bg-[#F8FAF7] hover:bg-gray-200 flex items-center justify-center font-bold text-base transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Minus className="w-4 h-4 text-[#1E293B]" />
+                    </button>
+
+                    <input
+                      type="number"
+                      min="1"
+                      max="12"
+                      value={formData.householdSize}
+                      onChange={(e) => handleHouseholdSizeChange(e.target.value)}
+                      className={`w-20 text-center py-2 rounded-xl border text-sm font-bold bg-[#F8FAF7] focus:ring-2 focus:ring-[#6B8E7B]/50 ${
+                        validationErrors.householdSize ? 'border-red-400 bg-red-50/50' : 'border-gray-200'
+                      }`}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => handleHouseholdSizeChange(formData.householdSize + 1)}
+                      disabled={formData.householdSize >= 12}
+                      className="w-9 h-9 rounded-xl border border-gray-200 bg-[#F8FAF7] hover:bg-gray-200 flex items-center justify-center font-bold text-base transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Plus className="w-4 h-4 text-[#1E293B]" />
+                    </button>
+
+                    <span className="text-xs text-[#64748B] ml-2 font-medium">
+                      {formData.householdSize === 1 && 'Solo cook (Single portions)'}
+                      {formData.householdSize === 2 && 'Couple (Double portions)'}
+                      {formData.householdSize >= 3 && formData.householdSize <= 4 && 'Small family portions'}
+                      {formData.householdSize > 4 && 'Large household batch cooking'}
+                    </span>
+                  </div>
+
+                  {validationErrors.householdSize && (
+                    <span className="text-[10px] text-red-600 font-semibold block mt-1">
+                      {validationErrors.householdSize}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div className="p-3.5 rounded-xl bg-[#F8FAF7] border border-gray-200 text-xs text-[#1E293B] font-semibold flex items-center gap-2">
+                  <Users className="w-4 h-4 text-[#6B8E7B]" />
+                  <span>
+                    Currently configured for <strong>{savedProfile.householdSize} {savedProfile.householdSize === 1 ? 'person' : 'people'}</strong>.
+                  </span>
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+
         {/* SECTION C: FOOD ALLERGIES & SENSITIVITIES */}
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200/90 shadow-2xs space-y-5">
           <div className="flex items-center justify-between pb-3 border-b border-gray-100">
@@ -827,6 +1203,130 @@ export default function ProfileView() {
               ) : (
                 <div className="p-4 rounded-2xl bg-[#F8FAF7] border border-gray-200 text-xs text-[#64748B]">
                   No food allergies or intolerances specified. All healthy whole ingredients will be considered for meal planning.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* SECTION C1: DISLIKED INGREDIENTS (TASTE PREFERENCES) */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200/90 shadow-2xs space-y-5">
+          <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <Utensils className="w-4 h-4 text-[#D9A441]" />
+              <h2 className="text-base font-bold text-[#1E293B]">Disliked Ingredients (Taste Preferences)</h2>
+            </div>
+            <span className="text-[11px] text-[#64748B]">Personal flavor exclusions (distinct from medical allergies)</span>
+          </div>
+
+          <div className="bg-[#FAF4E8] border border-[#D9A441]/30 rounded-2xl p-3.5 text-xs text-[#1E293B] flex items-start gap-2.5">
+            <Sparkles className="w-4 h-4 text-[#D9A441] shrink-0 mt-0.5" />
+            <p className="text-[11px] leading-relaxed text-[#64748B]">
+              <strong className="text-[#1E293B]">Flavor & Palate Preferences:</strong> Enter ingredients you dislike (e.g. Mushrooms, Coriander, Bitter gourd, Eggplant). The Meal Planner will omit them from your meal suggestions. Unlike <em>medical allergies</em>, these are not flagged as clinical hazards.
+            </p>
+          </div>
+
+          {isEditing ? (
+            <div className="space-y-4 text-xs">
+              {/* Quick Add Suggestions */}
+              <div>
+                <span className="text-[10px] font-bold text-[#64748B] block uppercase tracking-wider mb-2">
+                  Common Taste Dislikes (Click to add):
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {COMMON_DISLIKED_SUGGESTIONS.map(suggestion => {
+                    const alreadyAdded = formData.dislikedIngredients.some(item => item.toLowerCase() === suggestion.toLowerCase());
+                    return (
+                      <button
+                        type="button"
+                        key={suggestion}
+                        onClick={() => handleQuickAddDisliked(suggestion)}
+                        disabled={alreadyAdded}
+                        className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                          alreadyAdded
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
+                            : 'bg-[#F8FAF7] text-[#64748B] hover:text-[#1E293B] border border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        {alreadyAdded ? `✓ ${suggestion}` : `+ ${suggestion}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Custom Disliked Entry Input */}
+              <div>
+                <label className="block text-[11px] font-bold text-[#1E293B] mb-1">
+                  Add Specific Disliked Ingredient
+                </label>
+                <div className="flex gap-2 max-w-md">
+                  <input
+                    type="text"
+                    placeholder="e.g. Coriander, Bitter gourd, Olives"
+                    value={customDisliked}
+                    onChange={(e) => setCustomDisliked(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddDisliked(e);
+                      }
+                    }}
+                    className="flex-1 px-3.5 py-2 rounded-xl border border-gray-200 bg-[#F8FAF7] text-xs focus:ring-2 focus:ring-[#6B8E7B]/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddDisliked}
+                    className="px-4 py-2 rounded-xl bg-[#6B8E7B] hover:bg-[#567564] text-white text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+
+              {/* Active Disliked List */}
+              {formData.dislikedIngredients.length > 0 && (
+                <div className="pt-2">
+                  <span className="text-[10px] font-bold text-[#64748B] block uppercase tracking-wider mb-2">
+                    Active Excluded Ingredients ({formData.dislikedIngredients.length}):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {formData.dislikedIngredients.map(item => (
+                      <span
+                        key={item}
+                        className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1 rounded-xl text-xs font-bold"
+                      >
+                        <span>{item}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveDisliked(item)}
+                          className="hover:text-amber-950 cursor-pointer"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div>
+              {savedProfile.dislikedIngredients.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {savedProfile.dislikedIngredients.map(item => (
+                    <span
+                      key={item}
+                      className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-800 border border-amber-200/60 px-3.5 py-1.5 rounded-xl text-xs font-bold"
+                    >
+                      <Utensils className="w-3.5 h-3.5 text-amber-600" />
+                      <span>{item}</span>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-[#F8FAF7] border border-gray-200 text-xs text-[#64748B]">
+                  No disliked ingredients specified. All fresh ingredients matching your dietary preference will be included in meal suggestions.
                 </div>
               )}
             </div>

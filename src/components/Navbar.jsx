@@ -30,14 +30,7 @@ export default function Navbar({ user, onOpenLogin, onOpenSignup, onGoToDashboar
             <a href="#features" className="text-sm font-medium text-[#64748B] hover:text-[#1E293B] transition-colors">
               Features
             </a>
-            <a href="#how-it-works" className="text-sm font-medium text-[#64748B] hover:text-[#1E293B] transition-colors">
-              How It Works
-            </a>
-            <a href="#rag-ai" className="text-sm font-medium text-[#64748B] hover:text-[#1E293B] transition-colors flex items-center gap-1">
-              RAG Intelligence
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#FAF4E8] text-[#D9A441] border border-[#D9A441]/30">AI</span>
-            </a>
-            <a href="#dashboard-preview" className="text-sm font-medium text-[#64748B] hover:text-[#1E293B] transition-colors">
+            <a href="/dashboard" className="text-sm font-medium text-[#64748B] hover:text-[#1E293B] transition-colors">
               Dashboard
             </a>
           </nav>
@@ -112,11 +105,11 @@ export default function Navbar({ user, onOpenLogin, onOpenSignup, onGoToDashboar
               Features
             </a>
             <a 
-              href="#how-it-works" 
+              href="/dashboard" 
               onClick={() => setMobileMenuOpen(false)} 
               className="text-base font-medium text-[#64748B] py-1"
             >
-              How It Works
+              Dashboard
             </a>
 
             <div className="pt-4 border-t border-gray-100 flex flex-col gap-3">

@@ -42,10 +42,20 @@ exports.getProfile = async (req, res) => {
         dietaryPreference: user.preferences?.dietaryRestrictions?.[0] || 'Vegetarian',
         preferredDietType: 'Balanced / Whole Food',
         activityLevel: 'moderately_active',
+        foodCulture: user.preferences?.foodCulture || 'Indian',
+        preferredCuisines: user.preferences?.preferredCuisines || ['North Indian', 'South Indian'],
+        dislikedIngredients: user.preferences?.dislikedIngredients || [],
+        householdSize: user.preferences?.householdSize || 1,
       });
     }
 
     const profileData = profile.toObject();
+    if (!profileData.foodCulture) profileData.foodCulture = user.preferences?.foodCulture || 'Indian';
+    if (!profileData.preferredCuisines || profileData.preferredCuisines.length === 0) {
+      profileData.preferredCuisines = user.preferences?.preferredCuisines || ['North Indian', 'South Indian'];
+    }
+    if (!profileData.dislikedIngredients) profileData.dislikedIngredients = user.preferences?.dislikedIngredients || [];
+    if (!profileData.householdSize) profileData.householdSize = user.preferences?.householdSize || 1;
 
     res.status(200).json({
       success: true,
@@ -94,6 +104,10 @@ exports.updateProfile = async (req, res) => {
       weeklyBudget,
       calorieTarget,
       preferences,
+      foodCulture,
+      preferredCuisines,
+      dislikedIngredients,
+      householdSize,
     } = req.body;
 
     const profileUpdates = {};
@@ -211,6 +225,66 @@ exports.updateProfile = async (req, res) => {
       }
     }
 
+    // 10. Food culture
+    const rawCulture = foodCulture !== undefined ? foodCulture : preferences?.foodCulture;
+    const VALID_FOOD_CULTURES = ['Indian', 'Western / International', 'Mixed'];
+    if (rawCulture !== undefined) {
+      if (typeof rawCulture !== 'string' || !VALID_FOOD_CULTURES.includes(rawCulture.trim())) {
+        validationErrors.push(`Food culture must be one of: ${VALID_FOOD_CULTURES.join(', ')}.`);
+      } else {
+        profileUpdates.foodCulture = rawCulture.trim();
+      }
+    }
+
+    // 11. Preferred cuisines
+    const rawCuisines = preferredCuisines !== undefined ? preferredCuisines : preferences?.preferredCuisines;
+    if (rawCuisines !== undefined) {
+      if (!Array.isArray(rawCuisines)) {
+        validationErrors.push('Preferred cuisines must be an array of cuisine names.');
+      } else {
+        const sanitizedCuisines = Array.from(
+          new Set(
+            rawCuisines
+              .map((c) => (typeof c === 'string' ? c.trim() : ''))
+              .filter(Boolean)
+          )
+        );
+        profileUpdates.preferredCuisines = sanitizedCuisines;
+      }
+    }
+
+    // 12. Disliked ingredients (taste preferences, distinct from allergies)
+    const rawDisliked = dislikedIngredients !== undefined ? dislikedIngredients : preferences?.dislikedIngredients;
+    if (rawDisliked !== undefined) {
+      if (!Array.isArray(rawDisliked)) {
+        validationErrors.push('Disliked ingredients must be an array of ingredient names.');
+      } else {
+        const sanitizedDisliked = Array.from(
+          new Set(
+            rawDisliked
+              .map((d) => (typeof d === 'string' ? d.trim() : ''))
+              .filter(Boolean)
+          )
+        );
+        if (sanitizedDisliked.some((item) => item.length > 50)) {
+          validationErrors.push('Disliked ingredient names cannot exceed 50 characters.');
+        } else {
+          profileUpdates.dislikedIngredients = sanitizedDisliked;
+        }
+      }
+    }
+
+    // 13. Household size
+    const rawHousehold = householdSize !== undefined ? householdSize : preferences?.householdSize;
+    if (rawHousehold !== undefined) {
+      const numHousehold = Number(rawHousehold);
+      if (isNaN(numHousehold) || !Number.isInteger(numHousehold) || numHousehold < 1 || numHousehold > 12) {
+        validationErrors.push('Household size must be a whole number between 1 and 12.');
+      } else {
+        profileUpdates.householdSize = numHousehold;
+      }
+    }
+
     // Return 400 if validation failed
     if (validationErrors.length > 0) {
       return res.status(400).json({
@@ -224,7 +298,7 @@ exports.updateProfile = async (req, res) => {
     const updatedProfile = await Profile.findOneAndUpdate(
       { user: userId },
       { $set: profileUpdates },
-      { returnDocument: 'after', new: true, upsert: true, runValidators: true }
+      { returnDocument: 'after', upsert: true, runValidators: true }
     );
 
     // Keep User model preferences synchronized for backward compatibility with other views
@@ -244,6 +318,18 @@ exports.updateProfile = async (req, res) => {
     }
     if (calculatedWeekly !== null) {
       userPrefs.weeklyBudget = calculatedWeekly;
+    }
+    if (profileUpdates.foodCulture !== undefined) {
+      userPrefs.foodCulture = profileUpdates.foodCulture;
+    }
+    if (profileUpdates.preferredCuisines !== undefined) {
+      userPrefs.preferredCuisines = profileUpdates.preferredCuisines;
+    }
+    if (profileUpdates.dislikedIngredients !== undefined) {
+      userPrefs.dislikedIngredients = profileUpdates.dislikedIngredients;
+    }
+    if (profileUpdates.householdSize !== undefined) {
+      userPrefs.householdSize = profileUpdates.householdSize;
     }
 
     user.preferences = userPrefs;

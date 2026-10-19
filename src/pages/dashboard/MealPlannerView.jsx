@@ -3,12 +3,35 @@ import { Link, useNavigate } from 'react-router-dom';
 import { 
   Utensils, RefreshCw, ShoppingCart, ArrowLeft, CheckCircle2, 
   ChevronRight, X, AlertTriangle, ShieldCheck, Sparkles, 
-  Calendar, Clock, DollarSign, Flame, Info, Check, Eye
+  Calendar, Clock, DollarSign, Flame, Info, Check, Eye,
+  Users, Plus, Minus, ChefHat, BookOpen
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
 import { formatCurrency, formatWholeCurrency } from '../../utils/currency';
 import mealPlannerHeaderImg from '../../assets/dashboard/meal-planner.jpg';
+
+function scaleQuantityStr(qtyStr, baseServings, targetServings) {
+  if (!qtyStr || !baseServings || !targetServings) return qtyStr;
+  const b = parseFloat(baseServings) || 2;
+  const t = parseFloat(targetServings) || 2;
+  const ratio = t / b;
+  if (Math.abs(ratio - 1) < 0.001) return qtyStr;
+
+  return qtyStr.replace(/^(\d+(?:\.\d+)?|\d+\/\d+)/, (match) => {
+    let num = 0;
+    if (match.includes('/')) {
+      const [numPart, denPart] = match.split('/');
+      num = parseFloat(numPart) / parseFloat(denPart);
+    } else {
+      num = parseFloat(match);
+    }
+    if (isNaN(num)) return match;
+    const scaled = num * ratio;
+    const rounded = Math.round(scaled * 10) / 10;
+    return rounded.toString();
+  });
+}
 
 const DAYS_OF_WEEK = [
   { id: 'mon', label: 'Mon', full: 'Monday' },
@@ -43,6 +66,8 @@ export default function MealPlannerView() {
   const [activeDay, setActiveDay] = useState('mon');
   const [viewMode, setViewMode] = useState('day'); // 'day' or 'week'
   const [selectedMealForModal, setSelectedMealForModal] = useState(null);
+  const [modalServings, setModalServings] = useState(2);
+  const [enrichingRecipe, setEnrichingRecipe] = useState(false);
   const [showGroceryToast, setShowGroceryToast] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [successToast, setSuccessToast] = useState('');
@@ -152,6 +177,51 @@ export default function MealPlannerView() {
       setError(msg);
     } finally {
       setSwappingSlot(null);
+    }
+  };
+
+  // Open Recipe Details Modal with dynamic serving sizing initialized
+  const handleOpenRecipeModal = (meal, dayId, slotKey) => {
+    const baseServings = meal.servings || (user?.preferences?.householdSize || 2);
+    setSelectedMealForModal({ ...meal, dayId, slotKey });
+    setModalServings(baseServings);
+  };
+
+  // Explicitly enrich recipe steps using Gemini AI
+  const handleEnrichRecipe = async (dayId, mealType) => {
+    if (!dayId || !mealType) return;
+    setEnrichingRecipe(true);
+    try {
+      const res = await api.mealPlanner.enrichRecipe({ dayId, mealType });
+      if (res.success && res.recipe) {
+        setSelectedMealForModal((prev) => ({
+          ...prev,
+          ...res.recipe,
+        }));
+        setMealPlan((prev) => {
+          if (!prev) return prev;
+          const updatedDays = prev.days.map((d) => {
+            if (d.dayId === dayId) {
+              return {
+                ...d,
+                meals: {
+                  ...d.meals,
+                  [mealType.toLowerCase()]: res.recipe,
+                },
+              };
+            }
+            return d;
+          });
+          return { ...prev, days: updatedDays };
+        });
+        setSuccessToast('Step-by-step cooking instructions successfully enriched with AI!');
+        setTimeout(() => setSuccessToast(''), 4000);
+      }
+    } catch (err) {
+      console.error('Enrich recipe error:', err);
+      setError(err.response?.data?.message || err.message || 'Could not enrich recipe.');
+    } finally {
+      setEnrichingRecipe(false);
     }
   };
 
@@ -535,14 +605,37 @@ export default function MealPlannerView() {
                     </div>
                   </div>
 
-                  {/* Meal Title & Portion */}
+                  {/* Meal Title, Description & Times */}
                   <h3 className="text-base font-extrabold text-[#1E293B] group-hover:text-[#6B8E7B] transition-colors leading-snug">
                     {meal.title}
                   </h3>
-                  <p className="text-[11px] text-gray-400 mt-0.5">Portion: {meal.portion || '1 standard serving'}</p>
+
+                  {meal.description && (
+                    <p className="text-xs text-[#64748B] mt-1 line-clamp-2 leading-relaxed">
+                      {meal.description}
+                    </p>
+                  )}
+
+                  {/* Prep & Cook Times & Servings */}
+                  <div className="flex items-center gap-2.5 text-[11px] text-[#64748B] mt-2 flex-wrap">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-[#6B8E7B]" />
+                      <span>Prep: <strong>{meal.prepTime || '10 mins'}</strong></span>
+                    </span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                      <Flame className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Cook: <strong>{meal.cookTime || '15 mins'}</strong></span>
+                    </span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                      <Users className="w-3.5 h-3.5 text-blue-500" />
+                      <span>{meal.servings || 2} servings</span>
+                    </span>
+                  </div>
 
                   {/* Macro Pills Grid */}
-                  <div className="grid grid-cols-4 gap-2 my-4 text-center">
+                  <div className="grid grid-cols-4 gap-2 my-3 text-center">
                     <div className="bg-[#F8FAF7] p-2 rounded-xl border border-gray-100">
                       <span className="text-[10px] text-[#64748B] block font-semibold">Calories</span>
                       <span className="text-xs font-extrabold text-[#1E293B]">{meal.calories}</span>
@@ -561,12 +654,22 @@ export default function MealPlannerView() {
                     </div>
                   </div>
 
+                  {/* Pantry Stock Matched Badge */}
+                  {meal.pantryMatchedIngredients && meal.pantryMatchedIngredients.length > 0 && (
+                    <div className="mb-2.5 p-2 rounded-xl bg-[#EBF1ED] border border-[#6B8E7B]/30 flex items-center gap-2 text-[11px] text-[#17201B]">
+                      <Sparkles className="w-3.5 h-3.5 text-[#6B8E7B] shrink-0" />
+                      <span className="font-semibold truncate">
+                        Pantry match: {meal.pantryMatchedIngredients.slice(0, 3).join(', ')}{meal.pantryMatchedIngredients.length > 3 ? ` +${meal.pantryMatchedIngredients.length - 3} more` : ''}
+                      </span>
+                    </div>
+                  )}
+
                   {/* Allergy Status & Cost Badges */}
-                  <div className="flex flex-wrap items-center gap-2 mb-3.5">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
                     {meal.allergyFlags?.isSafe ? (
                       <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200">
                         <Check className="w-3 h-3 text-emerald-600 stroke-[3]" />
-                        <span>Allergy Verified</span>
+                        <span>Allergy Screened</span>
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200">
@@ -580,19 +683,21 @@ export default function MealPlannerView() {
                     </span>
                   </div>
 
-                  {/* Instructions Snippet */}
+                  {/* Step Instructions Snippet */}
                   <p className="text-xs text-[#64748B] line-clamp-2 leading-relaxed">
                     {meal.instructions}
                   </p>
                 </div>
 
                 {/* Card Action Controls */}
-                <div className="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between gap-2">
+                <div className="pt-4 mt-3 border-t border-gray-100 flex items-center justify-between gap-2">
                   <button
-                    onClick={() => setSelectedMealForModal(meal)}
+                    type="button"
+                    onClick={() => handleOpenRecipeModal(meal, activeDay, slot.key)}
                     className="inline-flex items-center gap-1.5 text-xs font-bold text-[#6B8E7B] hover:text-[#567564] py-1.5 px-3 rounded-xl hover:bg-[#EBF1ED] transition-colors cursor-pointer"
                   >
-                    <span>View Ingredients & Recipe</span>
+                    <BookOpen className="w-3.5 h-3.5" />
+                    <span>View Recipe</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
 
@@ -635,11 +740,22 @@ export default function MealPlannerView() {
                       const meal = day.meals?.[type];
                       if (!meal) return null;
                       return (
-                        <div key={type} className="p-2 rounded-xl bg-[#F8FAF7] border border-gray-100 space-y-1">
-                          <span className="text-[9px] uppercase font-bold text-[#64748B] block">
-                            {type}
-                          </span>
-                          <span className="text-[11px] font-bold text-[#1E293B] line-clamp-1">
+                        <div
+                          key={type}
+                          onClick={() => handleOpenRecipeModal(meal, day.dayId, type)}
+                          className="p-2 rounded-xl bg-[#F8FAF7] hover:bg-[#EBF1ED]/70 transition-colors border border-gray-100 space-y-1 cursor-pointer group"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] uppercase font-bold text-[#64748B] block">
+                              {type}
+                            </span>
+                            {meal.pantryMatchedIngredients?.length > 0 && (
+                              <span className="text-[8px] font-bold text-[#6B8E7B] bg-white px-1 rounded border border-[#6B8E7B]/30">
+                                Stocked
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] font-bold text-[#1E293B] group-hover:text-[#6B8E7B] line-clamp-1 transition-colors">
                             {meal.title}
                           </span>
                           <div className="flex items-center justify-between text-[9px] text-gray-400">
@@ -652,6 +768,7 @@ export default function MealPlannerView() {
                   </div>
 
                   <button
+                    type="button"
                     onClick={() => {
                       setActiveDay(day.dayId);
                       setViewMode('day');
@@ -668,127 +785,318 @@ export default function MealPlannerView() {
       )}
 
       {/* ============================================================ */}
-      {/* 6. RECIPE DETAIL & ALLERGEN REVIEW MODAL                     */}
+      {/* 6. DEDICATED RECIPE DETAILS & COOKING EXPERIENCE MODAL       */}
       {/* ============================================================ */}
-      {selectedMealForModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-gray-200 animate-fade-slide-up max-h-[90vh] overflow-y-auto space-y-6">
-            
-            {/* Modal Header */}
-            <div className="flex items-start justify-between gap-4">
+      {selectedMealForModal && (() => {
+        const baseServings = selectedMealForModal.servings || (user?.preferences?.householdSize || 2);
+        const ratio = modalServings / baseServings;
+        const scaledCalories = Math.round((selectedMealForModal.calories || 0) * ratio);
+        const scaledCost = Math.round((selectedMealForModal.cost || 0) * ratio);
+
+        let instructionsList = [];
+        if (Array.isArray(selectedMealForModal.stepByStepInstructions) && selectedMealForModal.stepByStepInstructions.length > 0) {
+          instructionsList = selectedMealForModal.stepByStepInstructions;
+        } else if (selectedMealForModal.instructions) {
+          const lines = selectedMealForModal.instructions.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+          if (lines.length > 1) {
+            instructionsList = lines;
+          } else {
+            const numbered = selectedMealForModal.instructions.split(/(?=\d+[\.\)])/g).map((s) => s.trim()).filter(Boolean);
+            if (numbered.length > 1) {
+              instructionsList = numbered;
+            }
+          }
+        }
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-gray-200 animate-fade-slide-up max-h-[92vh] overflow-y-auto space-y-6">
+              
+              {/* Modal Top Nav: Back to Meal Plan & Close */}
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setSelectedMealForModal(null)}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#64748B] hover:text-[#1E293B] px-3 py-1.5 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Back to Meal Plan</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedMealForModal(null)}
+                  className="p-1.5 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Recipe Title & Header Meta */}
               <div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md border ${CUISINE_COLORS[selectedMealForModal.cuisine] || 'bg-gray-100'}`}>
+                <div className="flex items-center gap-2 flex-wrap mb-2">
+                  <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md border ${CUISINE_COLORS[selectedMealForModal.cuisine] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>
                     {selectedMealForModal.cuisine}
                   </span>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B8E7B] bg-[#EBF1ED] px-2.5 py-0.5 rounded-md">
-                    {selectedMealForModal.mealType}
+                    {selectedMealForModal.mealType || selectedMealForModal.slotKey}
+                  </span>
+                  <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">
+                    Base: {baseServings} {baseServings === 1 ? 'serving' : 'servings'}
                   </span>
                 </div>
-                <h3 className="text-xl font-extrabold text-[#1E293B] mt-2">
+
+                <h2 className="text-2xl font-extrabold text-[#1E293B] tracking-tight">
                   {selectedMealForModal.title}
-                </h3>
-              </div>
-              <button
-                onClick={() => setSelectedMealForModal(null)}
-                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+                </h2>
 
-            {/* Quick Metrics Bar */}
-            <div className="grid grid-cols-3 gap-3 p-3.5 bg-[#F8FAF7] rounded-2xl border border-gray-100 text-xs">
-              <div>
-                <span className="text-[10px] text-[#64748B] block font-semibold">Prep Time</span>
-                <span className="font-bold text-[#1E293B]">{selectedMealForModal.time}</span>
+                {selectedMealForModal.description && (
+                  <p className="text-xs sm:text-sm text-[#64748B] leading-relaxed mt-2">
+                    {selectedMealForModal.description}
+                  </p>
+                )}
               </div>
-              <div>
-                <span className="text-[10px] text-[#64748B] block font-semibold">Portion Size</span>
-                <span className="font-bold text-[#1E293B]">{selectedMealForModal.portion || '1 serving'}</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-[#64748B] block font-semibold">Portion Cost (Est.)</span>
-                <span className="font-bold text-[#6B8E7B]">{formatCurrency(selectedMealForModal.cost)}</span>
-              </div>
-            </div>
 
-            {/* Allergy Safety Audit Card */}
-            <div className="p-4 rounded-2xl bg-[#F8FAF7] border border-emerald-200/80 space-y-2">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                <h4 className="font-bold text-xs text-[#1E293B]">Allergy Safety & Screening</h4>
+              {/* Times & Scaled Metrics Bar */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 bg-[#F8FAF7] rounded-2xl border border-gray-100 text-xs">
+                <div>
+                  <span className="text-[10px] text-[#64748B] block font-semibold flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-[#6B8E7B]" /> Prep Time
+                  </span>
+                  <span className="font-bold text-[#1E293B]">{selectedMealForModal.prepTime || selectedMealForModal.time || '10 mins'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-[#64748B] block font-semibold flex items-center gap-1">
+                    <Flame className="w-3 h-3 text-amber-500" /> Cook Time
+                  </span>
+                  <span className="font-bold text-[#1E293B]">{selectedMealForModal.cookTime || '15 mins'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-[#64748B] block font-semibold">Calories</span>
+                  <span className="font-bold text-[#1E293B]">{scaledCalories} kcal</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-[#64748B] block font-semibold">Est. Cost</span>
+                  <span className="font-bold text-[#6B8E7B]">{formatCurrency(scaledCost)}</span>
+                </div>
               </div>
-              <p className="text-[11px] text-[#64748B]">
-                Screened against your declared allergies ({allergies.length > 0 ? allergies.join(', ') : 'None'}).
-                Potential cross-contamination risk: <strong>{selectedMealForModal.allergyFlags?.crossContaminationRisk || 'Low'}</strong>.
-              </p>
-              {selectedMealForModal.allergens?.length > 0 && (
-                <div className="flex items-center gap-1.5 pt-1 text-[10px]">
-                  <span className="text-gray-500 font-semibold">Known Allergen Categories:</span>
-                  <span className="font-bold text-gray-700">{selectedMealForModal.allergens.join(', ')}</span>
+
+              {/* Interactive Serving Adjustment Stepper */}
+              <div className="bg-[#FAF4E8] rounded-2xl p-4 border border-[#D9A441]/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <ChefHat className="w-4 h-4 text-[#D9A441]" />
+                    <span className="text-xs font-extrabold text-[#1E293B]">Adjust Serving Size</span>
+                  </div>
+                  <p className="text-[11px] text-[#64748B] mt-0.5">
+                    Ingredient quantities scale dynamically to match your desired portion.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setModalServings((s) => Math.max(1, s - 1))}
+                    disabled={modalServings <= 1}
+                    className="w-8 h-8 rounded-xl bg-white border border-gray-200 text-[#1E293B] font-bold flex items-center justify-center hover:bg-gray-100 disabled:opacity-40 cursor-pointer shadow-2xs transition-all"
+                    title="Decrease servings"
+                  >
+                    <Minus className="w-3.5 h-3.5" />
+                  </button>
+
+                  <div className="px-4 py-1.5 bg-white rounded-xl border border-gray-200 text-center min-w-[90px] shadow-2xs">
+                    <span className="text-xs font-extrabold text-[#1E293B] flex items-center justify-center gap-1">
+                      <Users className="w-3.5 h-3.5 text-[#6B8E7B]" />
+                      {modalServings} {modalServings === 1 ? 'serving' : 'servings'}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setModalServings((s) => Math.min(12, s + 1))}
+                    disabled={modalServings >= 12}
+                    className="w-8 h-8 rounded-xl bg-white border border-gray-200 text-[#1E293B] font-bold flex items-center justify-center hover:bg-gray-100 disabled:opacity-40 cursor-pointer shadow-2xs transition-all"
+                    title="Increase servings"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Pantry Stock Matches (if available) */}
+              {selectedMealForModal.pantryMatchedIngredients && selectedMealForModal.pantryMatchedIngredients.length > 0 && (
+                <div className="p-4 bg-[#EBF1ED] rounded-2xl border border-[#6B8E7B]/30 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#6B8E7B] shrink-0" />
+                    <h4 className="font-extrabold text-xs text-[#1E293B]">
+                      Pantry Stock Prioritized ({selectedMealForModal.pantryMatchedIngredients.length} items at home)
+                    </h4>
+                  </div>
+                  <p className="text-[11px] text-[#64748B]">
+                    This recipe was selected to use ingredients currently available in your home pantry:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {selectedMealForModal.pantryMatchedIngredients.map((item, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1 bg-white text-[#17201B] px-2.5 py-1 rounded-lg text-xs font-bold border border-[#6B8E7B]/30 shadow-2xs"
+                      >
+                        <Check className="w-3 h-3 text-[#6B8E7B] stroke-[3]" />
+                        {item}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
-            </div>
 
-            {/* Ingredients Breakdown */}
-            <div>
-              <h4 className="font-extrabold text-xs text-[#1E293B] mb-2 uppercase tracking-wider">
-                Ingredients Required
-              </h4>
-              <div className="space-y-1.5 text-xs">
-                {selectedMealForModal.ingredients?.map((ing, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-2 rounded-xl bg-[#F8FAF7] border border-gray-100">
-                    <div className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#6B8E7B]" />
-                      <span className="font-semibold text-[#1E293B]">{ing.name}</span>
-                      <span className="text-[#64748B]">({ing.quantity})</span>
-                    </div>
-                    {ing.cost > 0 && (
-                      <span className="text-[11px] font-bold text-[#D9A441]">~{formatCurrency(ing.cost)}</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+              {/* Scaled Ingredients Required */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-extrabold text-xs text-[#1E293B] uppercase tracking-wider">
+                    Ingredients ({modalServings} {modalServings === 1 ? 'Serving' : 'Servings'})
+                  </h4>
+                  <span className="text-[10px] text-[#64748B]">
+                    Scaled from base of {baseServings}
+                  </span>
+                </div>
 
-            {/* Preparation Instructions */}
-            <div>
-              <h4 className="font-extrabold text-xs text-[#1E293B] mb-2 uppercase tracking-wider">
-                Culinary Instructions
-              </h4>
-              <p className="text-xs text-[#64748B] leading-relaxed bg-[#F8FAF7] p-4 rounded-2xl border border-gray-100">
-                {selectedMealForModal.instructions}
-              </p>
-            </div>
+                <div className="space-y-1.5 text-xs">
+                  {selectedMealForModal.ingredients?.map((ing, idx) => {
+                    const scaledQty = scaleQuantityStr(ing.quantity, baseServings, modalServings);
+                    const scaledItemCost = ing.cost > 0 ? Math.round(ing.cost * ratio) : 0;
+                    const isPantryMatched = selectedMealForModal.pantryMatchedIngredients?.some(
+                      (p) => ing.name?.toLowerCase().includes(p.toLowerCase()) || p.toLowerCase().includes(ing.name?.toLowerCase())
+                    );
 
-            {/* Health Benefits Clinical Note */}
-            {selectedMealForModal.healthBenefits && (
-              <div className="p-3.5 rounded-2xl bg-[#EBF1ED] border border-[#6B8E7B]/30 flex items-start gap-2.5 text-xs text-[#17201B]">
-                <Info className="w-4 h-4 text-[#6B8E7B] shrink-0 mt-0.5" />
-                <div>
-                  <strong className="block text-[11px] font-bold text-[#6B8E7B]">Clinical Nutrition Highlight</strong>
-                  <span className="text-[11px] leading-relaxed">{selectedMealForModal.healthBenefits}</span>
+                    return (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-2.5 rounded-xl bg-[#F8FAF7] border border-gray-100 hover:border-gray-200 transition-colors"
+                      >
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`w-2 h-2 rounded-full ${isPantryMatched ? 'bg-emerald-500' : 'bg-[#6B8E7B]'}`} />
+                          <span className="font-bold text-[#1E293B]">{ing.name}</span>
+                          <span className="text-[#64748B] font-medium">({scaledQty})</span>
+                          {isPantryMatched && (
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md">
+                              In Pantry ✓
+                            </span>
+                          )}
+                        </div>
+                        {scaledItemCost > 0 && (
+                          <span className="text-[11px] font-bold text-[#D9A441]">~{formatCurrency(scaledItemCost)}</span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            )}
 
-            {/* Modal Bottom Actions */}
-            <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
-              <span className="text-[10px] text-gray-400">
-                * Nutritional values & prices are approximations.
-              </span>
-              <button
-                onClick={() => setSelectedMealForModal(null)}
-                className="px-5 py-2.5 rounded-xl bg-[#6B8E7B] text-white text-xs font-bold hover:bg-[#567564] transition-colors cursor-pointer"
-              >
-                Done
-              </button>
+              {/* Numbered Step-by-Step Cooking Instructions */}
+              <div>
+                <div className="flex items-center justify-between mb-2.5 flex-wrap gap-2">
+                  <h4 className="font-extrabold text-xs text-[#1E293B] uppercase tracking-wider flex items-center gap-1.5">
+                    <BookOpen className="w-3.5 h-3.5 text-[#6B8E7B]" />
+                    <span>Step-by-Step Cooking Instructions</span>
+                  </h4>
+
+                  {/* Enrich with AI button */}
+                  <button
+                    type="button"
+                    onClick={() => handleEnrichRecipe(selectedMealForModal.dayId || activeDay, selectedMealForModal.mealType || selectedMealForModal.slotKey)}
+                    disabled={enrichingRecipe}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-[#6B8E7B] hover:text-[#567564] bg-[#EBF1ED] px-2.5 py-1 rounded-lg border border-[#6B8E7B]/30 transition-all cursor-pointer disabled:opacity-50"
+                    title="Enrich cooking steps with Gemini AI"
+                  >
+                    <Sparkles className={`w-3 h-3 ${enrichingRecipe ? 'animate-spin' : ''}`} />
+                    <span>{enrichingRecipe ? 'Enriching...' : 'Enrich Steps with AI'}</span>
+                  </button>
+                </div>
+
+                {instructionsList.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {instructionsList.map((step, idx) => {
+                      const cleanStep = step.replace(/^\d+[\.\)]\s*/, '');
+                      return (
+                        <div
+                          key={idx}
+                          className="flex items-start gap-3 p-3.5 rounded-2xl bg-[#F8FAF7] border border-gray-100 hover:border-gray-200 transition-colors"
+                        >
+                          <span className="w-6 h-6 rounded-full bg-[#6B8E7B] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 shadow-2xs">
+                            {idx + 1}
+                          </span>
+                          <div className="text-xs text-[#1E293B] leading-relaxed flex-1 pt-0.5">
+                            {cleanStep}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-2xl bg-[#F8FAF7] border border-gray-100 space-y-3">
+                    <p className="text-xs text-[#64748B] leading-relaxed">
+                      {selectedMealForModal.instructions || 'Standard culinary preparation.'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleEnrichRecipe(selectedMealForModal.dayId || activeDay, selectedMealForModal.mealType || selectedMealForModal.slotKey)}
+                      disabled={enrichingRecipe}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#6B8E7B] text-white text-xs font-bold hover:bg-[#567564] transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                    >
+                      <Sparkles className={`w-3.5 h-3.5 ${enrichingRecipe ? 'animate-spin' : ''}`} />
+                      <span>{enrichingRecipe ? 'Generating Steps...' : 'Generate Step-by-Step Instructions with AI'}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Health Benefits Clinical Note */}
+              {selectedMealForModal.healthBenefits && (
+                <div className="p-3.5 rounded-2xl bg-[#EBF1ED] border border-[#6B8E7B]/30 flex items-start gap-2.5 text-xs text-[#17201B]">
+                  <Info className="w-4 h-4 text-[#6B8E7B] shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="block text-[11px] font-bold text-[#6B8E7B]">Clinical Nutrition Highlight</strong>
+                    <span className="text-[11px] leading-relaxed">{selectedMealForModal.healthBenefits}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Allergy Screening Safeguard Notice */}
+              <div className="p-4 rounded-2xl bg-[#F8FAF7] border border-emerald-200/80 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <h4 className="font-bold text-xs text-[#1E293B]">Allergy Safety & Screening Safeguards</h4>
+                </div>
+                <p className="text-[11px] text-[#64748B] leading-relaxed">
+                  Screened against your declared profile allergies ({allergies.length > 0 ? allergies.join(', ') : 'None declared'}).
+                  Screening safeguards do not guarantee absence of trace allergens. Always inspect all packaging and fresh ingredients prior to preparation.
+                </p>
+                {selectedMealForModal.allergens?.length > 0 && (
+                  <div className="flex items-center gap-1.5 pt-1 text-[10px]">
+                    <span className="text-gray-500 font-semibold">Identified Allergen Categories:</span>
+                    <span className="font-bold text-gray-700">{selectedMealForModal.allergens.join(', ')}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Bottom Actions */}
+              <div className="pt-4 border-t border-gray-100 flex items-center justify-between flex-wrap gap-3">
+                <span className="text-[10px] text-gray-400">
+                  * Nutritional values and estimated costs are approximations based on profile criteria.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedMealForModal(null)}
+                  className="px-6 py-2.5 rounded-xl bg-[#6B8E7B] text-white text-xs font-bold hover:bg-[#567564] transition-all cursor-pointer shadow-xs"
+                >
+                  Back to Meal Plan
+                </button>
+              </div>
+
             </div>
-
           </div>
-        </div>
-      )}
+        );
+      })()}
 
     </div>
   );

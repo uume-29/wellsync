@@ -48,6 +48,10 @@ export default function App() {
             <Route path="caregiver" element={<CaregiverAccessView />} />
             <Route path="assistant" element={<AiAssistantView />} />
             <Route path="insights" element={<InsightsView />} />
+
+            {/* Backward-compatible legacy redirects */}
+            <Route path="meal-planner" element={<Navigate to="/dashboard/meals" replace />} />
+            <Route path="grocery-list" element={<Navigate to="/dashboard/groceries" replace />} />
           </Route>
 
           {/* Catch-all redirect to Home */}

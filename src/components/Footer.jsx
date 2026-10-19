@@ -38,8 +38,8 @@ export default function Footer() {
               <li><a href="#features" className="hover:text-white transition-colors">AI Meal Planner</a></li>
               <li><a href="#features" className="hover:text-white transition-colors">Food Intelligence</a></li>
               <li><a href="#features" className="hover:text-white transition-colors">Medicine Tracker</a></li>
-              <li><a href="#rag-ai" className="hover:text-white transition-colors">RAG Assistant</a></li>
-              <li><a href="#dashboard-preview" className="hover:text-white transition-colors">SaaS Dashboard</a></li>
+              <li><a href="#features" className="hover:text-white transition-colors">RAG Assistant</a></li>
+              <li><a href="/dashboard" className="hover:text-white transition-colors">SaaS Dashboard</a></li>
             </ul>
           </div>
 
@@ -47,7 +47,7 @@ export default function Footer() {
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-100 mb-4">Company</h4>
             <ul className="space-y-2.5 text-xs text-slate-400">
-              <li><a href="#how-it-works" className="hover:text-white transition-colors">How It Works</a></li>
+              <li><a href="#features" className="hover:text-white transition-colors">Features</a></li>
               <li><a href="#about" className="hover:text-white transition-colors">About Us</a></li>
               <li><a href="#careers" className="hover:text-white transition-colors">Careers</a></li>
               <li><a href="#contact" className="hover:text-white transition-colors">Contact Support</a></li>

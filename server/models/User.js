@@ -50,6 +50,22 @@ const userSchema = new mongoose.Schema(
         type: [String],
         default: [],
       },
+      foodCulture: {
+        type: String,
+        default: 'Indian',
+      },
+      preferredCuisines: {
+        type: [String],
+        default: ['North Indian', 'South Indian'],
+      },
+      dislikedIngredients: {
+        type: [String],
+        default: [],
+      },
+      householdSize: {
+        type: Number,
+        default: 1,
+      },
     },
   },
   {

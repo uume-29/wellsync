@@ -75,9 +75,34 @@ const mealItemSchema = new mongoose.Schema(
         isAllergen: { type: Boolean, default: false },
       },
     ],
+    description: {
+      type: String,
+      default: '',
+    },
+    prepTime: {
+      type: String,
+      default: '10 mins',
+    },
+    cookTime: {
+      type: String,
+      default: '15 mins',
+    },
+    servings: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
     instructions: {
       type: String,
       required: true,
+    },
+    stepByStepInstructions: {
+      type: [String],
+      default: [],
+    },
+    pantryMatchedIngredients: {
+      type: [String],
+      default: [],
     },
     healthBenefits: {
       type: String,
@@ -156,7 +181,10 @@ const mealPlanSchema = new mongoose.Schema(
       calorieTarget: { type: Number, default: 2000 },
       monthlyFoodBudget: { type: Number, default: 10000 },
       activityLevel: { type: String, default: 'moderately_active' },
+      foodCulture: { type: String, default: 'Indian' },
       preferredCuisines: { type: [String], default: [] },
+      dislikedIngredients: { type: [String], default: [] },
+      householdSize: { type: Number, default: 1 },
     },
     summary: {
       weeklyEstimatedCost: { type: Number, default: 0 },

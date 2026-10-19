@@ -4,9 +4,6 @@ import Navbar from '../components/Navbar';
 import Hero from '../components/Hero';
 import TrustStrip from '../components/TrustStrip';
 import Features from '../components/Features';
-import HowItWorks from '../components/HowItWorks';
-import RagSection from '../components/RagSection';
-import DashboardPreview from '../components/DashboardPreview';
 import FinalCTA from '../components/FinalCTA';
 import Footer from '../components/Footer';
 import FoodAnalysisModal from '../components/FoodAnalysisModal';
@@ -80,16 +77,7 @@ export default function LandingPage() {
           onOpenAiDemo={() => setAiModalOpen(true)}
         />
 
-        {/* 4. How It Works */}
-        <HowItWorks />
-
-        {/* 5. RAG & Grounded AI Section */}
-        <RagSection />
-
-        {/* 6. Dashboard Preview (Landing visual) */}
-        <DashboardPreview />
-
-        {/* 7. Final CTA */}
+        {/* 4. Final CTA */}
         <FinalCTA onOpenSignup={handleOpenSignup} />
       </main>
 

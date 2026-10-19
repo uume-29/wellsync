@@ -96,22 +96,254 @@ export const api = {
       const response = await axiosInstance.post('/api/meals/swap', { dayId, mealType });
       return response.data;
     },
+
+    getRecipe: async (dayId, mealType) => {
+      const response = await axiosInstance.get(`/api/meals/recipe/${dayId}/${mealType}`);
+      return response.data;
+    },
+
+    enrichRecipe: async ({ dayId, mealType }) => {
+      const response = await axiosInstance.post('/api/meals/recipe/enrich', { dayId, mealType });
+      return response.data;
+    },
+  },
+
+  // Pantry Inventory API Endpoints (MongoDB Atlas Persisted)
+  pantry: {
+    getItems: async () => {
+      const response = await axiosInstance.get('/api/pantry');
+      return response.data;
+    },
+
+    addItem: async (itemData) => {
+      const response = await axiosInstance.post('/api/pantry', itemData);
+      return response.data;
+    },
+
+    updateItem: async (id, itemData) => {
+      const response = await axiosInstance.put(`/api/pantry/${id}`, itemData);
+      return response.data;
+    },
+
+    toggleStatus: async (id) => {
+      const response = await axiosInstance.patch(`/api/pantry/${id}/toggle`);
+      return response.data;
+    },
+
+    deleteItem: async (id) => {
+      const response = await axiosInstance.delete(`/api/pantry/${id}`);
+      return response.data;
+    },
+  },
+
+  // Monthly Grocery Planning API Endpoints (MongoDB Atlas Persisted)
+  grocery: {
+    getMonths: async () => {
+      const response = await axiosInstance.get('/api/grocery/months');
+      return response.data;
+    },
+
+    getPlan: async (month) => {
+      const response = await axiosInstance.get('/api/grocery/current', {
+        params: month ? { month } : {},
+      });
+      return response.data;
+    },
+
+    generatePlan: async (params = {}) => {
+      const response = await axiosInstance.post('/api/grocery/generate', params);
+      return response.data;
+    },
+
+    addItem: async (itemData) => {
+      const response = await axiosInstance.post('/api/grocery/items', itemData);
+      return response.data;
+    },
+
+    updateItem: async (itemId, itemData) => {
+      const response = await axiosInstance.put(`/api/grocery/items/${itemId}`, itemData);
+      return response.data;
+    },
+
+    deleteItem: async (itemId, month) => {
+      const response = await axiosInstance.delete(`/api/grocery/items/${itemId}`, {
+        params: month ? { month } : {},
+      });
+      return response.data;
+    },
+
+    togglePurchase: async (itemId, month) => {
+      const response = await axiosInstance.patch(`/api/grocery/items/${itemId}/purchase`, { month });
+      return response.data;
+    },
+
+    addToPantry: async (itemId, month) => {
+      const response = await axiosInstance.post(`/api/grocery/items/${itemId}/add-to-pantry`, { month });
+      return response.data;
+    },
+
+    recordBill: async (billData) => {
+      const response = await axiosInstance.post('/api/grocery/bills', billData);
+      return response.data;
+    },
+
+    deleteBill: async (billId, month) => {
+      const response = await axiosInstance.delete(`/api/grocery/bills/${billId}`, {
+        params: month ? { month } : {},
+      });
+      return response.data;
+    },
+
+    getBudgetAlternatives: async (month) => {
+      const response = await axiosInstance.get('/api/grocery/budget-alternatives', {
+        params: month ? { month } : {},
+      });
+      return response.data;
+    },
+
+    finalizePlan: async (month, status = 'completed') => {
+      const response = await axiosInstance.patch('/api/grocery/finalize', { month, status });
+      return response.data;
+    },
+
+    transferAllToPantry: async (month) => {
+      const response = await axiosInstance.post('/api/grocery/transfer-purchased', { month });
+      return response.data;
+    },
+  },
+
+  foodDiary: {
+    getByDate: async (date) => {
+      const response = await axiosInstance.get('/api/food-diary', {
+        params: date ? { date } : {},
+      });
+      return response.data;
+    },
+
+    getHistory: async (limit = 14) => {
+      const response = await axiosInstance.get('/api/food-diary/history', {
+        params: { limit },
+      });
+      return response.data;
+    },
+
+    createEntry: async (entryData) => {
+      const response = await axiosInstance.post('/api/food-diary', entryData);
+      return response.data;
+    },
+
+    updateEntry: async (id, entryData) => {
+      const response = await axiosInstance.put(`/api/food-diary/${id}`, entryData);
+      return response.data;
+    },
+
+    deleteEntry: async (id) => {
+      const response = await axiosInstance.delete(`/api/food-diary/${id}`);
+      return response.data;
+    },
+
+    analyzeImage: async (image, mimeType = 'image/jpeg') => {
+      const response = await axiosInstance.post('/api/food-diary/analyze-image', {
+        image,
+        mimeType,
+      });
+      return response.data;
+    },
   },
 
   foodVision: {
-    analyzeImage: async () => {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve({
-            foodName: 'Avocado Toast with Poached Egg & Microgreens',
-            calories: 380,
-            macros: { protein: '16g', carbs: '28g', healthyFats: '22g', fiber: '9g' },
-            micronutrients: ['Vitamin E', 'Folate', 'Potassium', 'Omega-3'],
-            glycemicImpact: 'Low',
-            confidence: 0.94,
-          });
-        }, 800);
+    analyzeImage: async (image, mimeType = 'image/jpeg') => {
+      // Connect to real backend Gemini Vision endpoint
+      const response = await axiosInstance.post('/api/food-diary/analyze-image', {
+        image,
+        mimeType,
       });
+      return response.data?.data || response.data;
+    },
+  },
+
+  medicines: {
+    getAll: async (date) => {
+      const response = await axiosInstance.get('/api/medicines', {
+        params: date ? { date } : {},
+      });
+      return response.data;
+    },
+
+    create: async (medData) => {
+      const response = await axiosInstance.post('/api/medicines', medData);
+      return response.data;
+    },
+
+    update: async (id, medData) => {
+      const response = await axiosInstance.put(`/api/medicines/${id}`, medData);
+      return response.data;
+    },
+
+    delete: async (id) => {
+      const response = await axiosInstance.delete(`/api/medicines/${id}`);
+      return response.data;
+    },
+
+    setStatus: async (id, statusData) => {
+      const response = await axiosInstance.patch(`/api/medicines/${id}/status`, statusData);
+      return response.data;
+    },
+
+    toggleReminder: async (id) => {
+      const response = await axiosInstance.patch(`/api/medicines/${id}/toggle-reminder`);
+      return response.data;
+    },
+
+    getCompliance: async (days = 7) => {
+      const response = await axiosInstance.get('/api/medicines/compliance', {
+        params: { days },
+      });
+      return response.data;
+    },
+  },
+
+  caregiver: {
+    getAll: async () => {
+      const response = await axiosInstance.get('/api/caregiver');
+      return response.data;
+    },
+
+    invite: async (inviteData) => {
+      const response = await axiosInstance.post('/api/caregiver/invite', inviteData);
+      return response.data;
+    },
+
+    verifyInvitation: async (token) => {
+      const response = await axiosInstance.get(`/api/caregiver/invitations/verify/${token}`);
+      return response.data;
+    },
+
+    acceptInvitation: async (acceptData) => {
+      const response = await axiosInstance.post('/api/caregiver/invitations/accept', acceptData);
+      return response.data;
+    },
+
+    updatePermissions: async (id, permissions) => {
+      const response = await axiosInstance.patch(`/api/caregiver/${id}/permissions`, {
+        permissions,
+      });
+      return response.data;
+    },
+
+    revoke: async (id) => {
+      const response = await axiosInstance.delete(`/api/caregiver/${id}`);
+      return response.data;
+    },
+
+    getMyPatients: async () => {
+      const response = await axiosInstance.get('/api/caregiver/patients');
+      return response.data;
+    },
+
+    getPatientModuleData: async (grantId, module) => {
+      const response = await axiosInstance.get(`/api/caregiver/patient/${grantId}/${module}`);
+      return response.data;
     },
   },
 

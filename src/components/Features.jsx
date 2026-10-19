@@ -29,7 +29,7 @@ export default function Features({ onOpenFoodDemo, onOpenAiDemo }) {
       description: 'Balanced, delicious meals crafted dynamically around your taste preferences, allergies, dietary restrictions, and grocery budget.',
       actionType: 'link',
       actionText: 'Explore Meal Plans',
-      actionHref: '#dashboard-preview',
+      actionHref: '/dashboard',
     },
     {
       key: 'foodDiary',
@@ -54,7 +54,7 @@ export default function Features({ onOpenFoodDemo, onOpenAiDemo }) {
       description: 'Automatically compile grocery shopping lists directly from your confirmed weekly meal plans, optimized against budget targets.',
       actionType: 'link',
       actionText: 'Budget Shopping Cart',
-      actionHref: '#dashboard-preview',
+      actionHref: '/dashboard',
     },
     {
       key: 'medicineTracker',
@@ -66,7 +66,7 @@ export default function Features({ onOpenFoodDemo, onOpenAiDemo }) {
       description: 'Effortlessly manage dosage schedules, confirm medication adherence with one tap, and keep trusted family caregivers aligned.',
       actionType: 'link',
       actionText: 'Explore Tracker',
-      actionHref: '#dashboard-preview',
+      actionHref: '/dashboard',
     },
     {
       key: 'aiAssistant',
@@ -91,7 +91,7 @@ export default function Features({ onOpenFoodDemo, onOpenAiDemo }) {
       description: 'Correlate your nutrition logs, daily medication adherence, and habit momentum into actionable weekly reflections.',
       actionType: 'link',
       actionText: 'View Wellness Trends',
-      actionHref: '#dashboard-preview',
+      actionHref: '/dashboard',
     },
   ];
 
